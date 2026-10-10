@@ -1,5 +1,6 @@
 <?php
 require_once dirname(__DIR__) . '/config.php';
+pm_require_authorized_embed();
 
 // t.php - Sistema de Player Completo com JWPlayer, HLS, Qualidade e Iframe Fallback
 // Uso: t.php?id=ID_TMDB&play=1
@@ -287,7 +288,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'sources') {
         return $host !== 'www-fontedecanais-sh.77zzhf54vdll71.com';
     }));
     if (!$sources) {
-        $sources = [['file'=>"https://mgeb.top/embed/{$id}",'type'=>'iframe','label'=>'AUTO']];
+        $sources = [['file'=>"https://playerflixapi.com/filme/{$id}",'type'=>'iframe','label'=>'AUTO']];
     }
     echo json_encode(['ok'=>true,'sources'=>$sources], JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
     exit;
@@ -1596,19 +1597,7 @@ window.addEventListener(
 
 </script>
 
-<script>
-var link = "https://omg10.com/4/10811407";
-var tempo = 120000; // 2 minutos
-var ultimo = 0;
 
-document.addEventListener('click', function() {
-    var agora = Date.now();
-    if (agora - ultimo >= tempo) {
-        window.open(link, '_blank');
-        ultimo = agora;
-    }
-});
-</script>
 </body>
 
 </html>
