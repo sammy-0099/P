@@ -204,7 +204,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'sources') {
     }));
     if (!$sources) {
         $sources = [[
-            'file' => "https://playerflixapi.com/serie/{$id}/{$season}/{$episode}",
+            'file' => "https://embedplayapi.top/embed/{$id}/{$season}/{$episode}",
             'type' => 'iframe',
             'label' => 'AUTO'
         ]];
@@ -484,7 +484,7 @@ function initPlayer(){
 }
 
 function loadIframeFallback(url){
-    var fallbackUrl=url||'https://playerflixapi.com/serie/<?= $id ?>/<?= $season ?>/<?= $episode ?>';
+    var fallbackUrl=url||'https://embedplayapi.top/embed/<?= $id ?>/<?= $season ?>/<?= $episode ?>';
     document.getElementById('ani-player').style.display='none';
     document.getElementById('down').style.display='none';
     var iframe=document.getElementById('iframe-player');
