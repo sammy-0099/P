@@ -483,7 +483,7 @@ function initPlayer(){
 }
 
 function loadIframeFallback(url){
-    var fallbackUrl=url||'https://mgeb.top/embed/<?= $id ?>/<?= $season ?>/<?= $episode ?>';
+    var fallbackUrl=url||'https://playerflixapi.com/serie/<?= $id ?>/<?= $season ?>/<?= $episode ?>';
     document.getElementById('ani-player').style.display='none';
     document.getElementById('down').style.display='none';
     var iframe=document.getElementById('iframe-player');
