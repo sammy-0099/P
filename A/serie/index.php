@@ -205,7 +205,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'sources') {
     }));
     if (!$sources) {
         $sources = [[
-            'file' => "https://mgeb.top/embed/{$id}/{$season}/{$episode}",
+            'file' => "https://playerflixapi.com/serie/{$id}/{$season}/{$episode}",
             'type' => 'iframe',
             'label' => 'AUTO'
         ]];
