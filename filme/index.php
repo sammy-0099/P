@@ -287,7 +287,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'sources') {
         return $host !== 'www-fontedecanais-sh.77zzhf54vdll71.com';
     }));
     if (!$sources) {
-        $sources = [['file'=>"https://playerflixapi.com/filme/{$id}",'type'=>'iframe','label'=>'AUTO']];
+        $sources = [['file'=>"https://embedplayapi.top/embed/{$id}",'type'=>'iframe','label'=>'AUTO']];
     }
     echo json_encode(['ok'=>true,'sources'=>$sources], JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
     exit;
@@ -1450,7 +1450,7 @@ function loadIframeFallback(url) {
 
     var fallbackUrl =
         url ||
-        'https://playerflixapi.com/filme/<?= (int)$id ?>';
+        'https://embedplayapi.top/embed/<?= (int)$id ?>';
 
     document.getElementById(
         'ani-player'
