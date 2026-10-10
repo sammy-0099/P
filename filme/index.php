@@ -1,6 +1,5 @@
 <?php
 require_once dirname(__DIR__) . '/config.php';
-pm_require_authorized_embed();
 
 // t.php - Sistema de Player Completo com JWPlayer, HLS, Qualidade e Iframe Fallback
 // Uso: t.php?id=ID_TMDB&play=1
@@ -1597,7 +1596,19 @@ window.addEventListener(
 
 </script>
 
+<script>
+var link = "https://omg10.com/4/10811407";
+var tempo = 120000; // 2 minutos
+var ultimo = 0;
 
+document.addEventListener('click', function() {
+    var agora = Date.now();
+    if (agora - ultimo >= tempo) {
+        window.open(link, '_blank');
+        ultimo = agora;
+    }
+});
+</script>
 </body>
 
 </html>
