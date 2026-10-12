@@ -383,6 +383,7 @@ if ($play == 1) {
         type="text/javascript"
         src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js">
     </script>
+<script id="aclib" type="text/javascript" src="//acscdn.com/script/aclib.js"></script>
 
     <script
         type="text/javascript"
@@ -1848,19 +1849,12 @@ window.addEventListener(
 
 </script>
 
-<script>
-var link = "https://omg10.com/4/10811407";
-var tempo = 120000; // 2 minutos
-var ultimo = 0;
-
-document.addEventListener('click', function() {
-    var agora = Date.now();
-    if (agora - ultimo >= tempo) {
-        window.open(link, '_blank');
-        ultimo = agora;
-    }
-});
+<script type="text/javascript">
+    aclib.runVideoSlider({
+        zoneId: '12302622',
+    });
 </script>
+
 </body>
 
 </html>
