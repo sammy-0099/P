@@ -404,6 +404,12 @@ if ($play == 1) {
         src="https://cdn.jsdelivr.net/npm/js-cookie@3.0.1/dist/js.cookie.min.js">
     </script>
 
+    <!-- FluidPlayer (VAST / Monetização) -->
+    <script src="https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js"></script>
+
+    <!-- HLS.js (suporte HLS para o ad-gate) -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js"></script>
+
     <style>
 
         html,
@@ -811,6 +817,66 @@ if ($play == 1) {
         .pm-loader-sub{color:#777;font:11px Arial,sans-serif}
         @keyframes pmspin{to{transform:rotate(360deg)}}
 
+        /* ============================================================
+           AD GATE (FluidPlayer / VAST)
+           ============================================================ */
+        #playmoz-ad-gate {
+            position: fixed;
+            inset: 0;
+            z-index: 999999998;
+            background: #000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        #playmoz-ad-gate.show {
+            display: flex;
+        }
+        #playmoz-ad-gate video,
+        #playmoz-ad-gate .fluid_video_wrapper {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100%;
+            max-height: 100%;
+            background: #000;
+        }
+        #playmoz-ad-label {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            z-index: 2147483000;
+            background: rgba(0,0,0,.75);
+            color: #fff;
+            padding: 5px 12px;
+            font: 700 11px Arial, sans-serif;
+            border-radius: 4px;
+            letter-spacing: 1px;
+            border: 1px solid rgba(255,255,255,.15);
+            pointer-events: none;
+        }
+        #playmoz-ad-skip {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            z-index: 2147483000;
+            background: rgba(0,0,0,.75);
+            color: #fff;
+            padding: 9px 16px;
+            font: 600 12px Arial, sans-serif;
+            border: 1px solid rgba(255,255,255,.35);
+            border-radius: 6px;
+            cursor: pointer;
+            display: none;
+            transition: background .2s ease;
+        }
+        #playmoz-ad-skip:hover {
+            background: rgba(60,60,60,.9);
+        }
+        #playmoz-ad-skip.show {
+            display: block;
+        }
+
     </style>
 
 </head>
@@ -818,8 +884,14 @@ if ($play == 1) {
 <body>
 <div id="playmoz-loader"><div class="pm-loader-ring"></div><div class="pm-loader-text">Carregando filme...</div><div class="pm-loader-sub">A preparar o player</div></div>
 
-
-
+<!-- ============================================================
+     AD GATE (FluidPlayer / VAST)
+     ============================================================ -->
+<div id="playmoz-ad-gate">
+    <span id="playmoz-ad-label">ANÚNCIO</span>
+    <button id="playmoz-ad-skip" type="button">Pular anúncio ▸</button>
+    <video id="playmoz-ad-video" playsinline webkit-playsinline></video>
+</div>
 
 
 <div id="down">
@@ -1553,14 +1625,184 @@ document.addEventListener(
 );
 
 // ============================================================
+// AD GATE (FluidPlayer / VAST)
+// ============================================================
+
+var AD_VAST_TAG = "https://youradexchange.com/video/select.php?r=12302486";
+var playmozAdPlayer = null;
+
+function playmozFinishAdGate(callback) {
+    var gate = document.getElementById('playmoz-ad-gate');
+    var skip = document.getElementById('playmoz-ad-skip');
+    var video = document.getElementById('playmoz-ad-video');
+
+    try { if (playmozAdPlayer && typeof playmozAdPlayer.destroy === 'function') playmozAdPlayer.destroy(); } catch(e) {}
+    playmozAdPlayer = null;
+
+    try {
+        if (video) {
+            video.pause();
+            video.removeAttribute('src');
+            video.innerHTML = '';
+            try { video.load(); } catch(e) {}
+        }
+    } catch(e) {}
+
+    if (gate) gate.classList.remove('show');
+    if (gate) gate.style.display = 'none';
+    if (skip) skip.classList.remove('show');
+
+    if (typeof callback === 'function') callback();
+}
+
+function playmozRunAdGate(callback) {
+    var gate = document.getElementById('playmoz-ad-gate');
+    var video = document.getElementById('playmoz-ad-video');
+    var skip = document.getElementById('playmoz-ad-skip');
+
+    // Sem FluidPlayer ou sem elementos -> segue direto
+    if (!gate || !video || typeof fluidPlayer === 'undefined') {
+        if (typeof callback === 'function') callback();
+        return;
+    }
+
+    // Busca a primeira fonte válida para servir de "content" do ad-gate
+    fetch(sourceEndpoint, { cache: 'default', credentials: 'same-origin' })
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(data){
+            var sources = (data && Array.isArray(data.sources)) ? data.sources : [];
+            var first = null;
+            for (var i = 0; i < sources.length; i++) {
+                var s = sources[i];
+                if (s && s.file && s.file.indexOf('http') === 0 && s.type !== 'iframe') {
+                    first = s;
+                    break;
+                }
+            }
+
+            // Se não há fonte MP4/HLS, pula o ad-gate e vai pro conteúdo
+            if (!first) {
+                if (typeof callback === 'function') callback();
+                return;
+            }
+
+            var isHls = (first.type === 'hls') || (first.file.indexOf('.m3u8') !== -1);
+
+            // Se for HLS e não tiver hls.js, tenta mesmo assim (FluidPlayer pode ter suporte)
+            try {
+                video.innerHTML = '';
+                var srcEl = document.createElement('source');
+                srcEl.src = first.file;
+                srcEl.type = isHls ? 'application/x-mpegURL' : 'video/mp4';
+                video.appendChild(srcEl);
+                try { video.load(); } catch(e) {}
+            } catch(e) {
+                if (typeof callback === 'function') callback();
+                return;
+            }
+
+            // Mostra o gate
+            gate.style.display = 'flex';
+            gate.classList.add('show');
+
+            // Esconde o loader principal durante o anúncio
+            var loader = document.getElementById('playmoz-loader');
+            if (loader) loader.classList.add('hide');
+
+            var finished = false;
+            function finish() {
+                if (finished) return;
+                finished = true;
+                playmozFinishAdGate(callback);
+            }
+
+            // Inicializa FluidPlayer com VAST
+            try {
+                playmozAdPlayer = fluidPlayer('playmoz-ad-video', {
+                    layoutControls: {
+                        controlBar: {
+                            autoHideTimeout: 3,
+                            animated: true,
+                            autoHide: false
+                        },
+                        htmlOnPauseBlock: {
+                            html: null,
+                            height: null,
+                            width: null
+                        },
+                        autoPlay: true,
+                        mute: true,
+                        allowTheatre: false,
+                        playPauseAnimation: false,
+                        playbackRateEnabled: false,
+                        allowDownload: false,
+                        playButtonShowing: true,
+                        fillToContainer: true,
+                        posterImage: ""
+                    },
+                    vastOptions: {
+                        adList: [
+                            {
+                                roll: "preRoll",
+                                vastTag: AD_VAST_TAG,
+                                adText: ""
+                            },
+                            {
+                                roll: "midRoll",
+                                vastTag: AD_VAST_TAG,
+                                adText: ""
+                            },
+                            {
+                                roll: "postRoll",
+                                vastTag: AD_VAST_TAG,
+                                adText: ""
+                            },
+                            {
+                                roll: "onPauseRoll",
+                                vastTag: AD_VAST_TAG,
+                                adText: ""
+                            }
+                        ],
+                        adCTAText: false,
+                        adCTATextPosition: ""
+                    }
+                });
+            } catch(e) {
+                finish();
+                return;
+            }
+
+            // Botão de pular (aparece após 5s)
+            if (skip) {
+                setTimeout(function(){ skip.classList.add('show'); }, 5000);
+                skip.addEventListener('click', finish);
+            }
+
+            // Eventos do FluidPlayer (nomes variam por versão)
+            try {
+                if (playmozAdPlayer && typeof playmozAdPlayer.on === 'function') {
+                    ['adEnded','ad_ended','adFinished','ad_finished'].forEach(function(evt){
+                        try { playmozAdPlayer.on(evt, finish); } catch(e) {}
+                    });
+                    try { playmozAdPlayer.on('ended', finish); } catch(e) {}
+                }
+            } catch(e) {}
+
+            // Fallback seguro: fecha o ad-gate no máximo em 40s
+            setTimeout(finish, 40000);
+        })
+        .catch(function(){
+            if (typeof callback === 'function') callback();
+        });
+}
+
+// ============================================================
 // DOM READY
 // ============================================================
 
 document.addEventListener(
     'DOMContentLoaded',
     function() {
-
-        resolveSources();
 
         if (
             !returnKey &&
@@ -1574,6 +1816,16 @@ document.addEventListener(
                         .generateReturnKey();
 
             } catch(e) {}
+        }
+
+        // Executa o ad-gate (VAST) antes de carregar o conteúdo.
+        // Se o ad-gate falhar por qualquer motivo, cai direto no resolveSources().
+        try {
+            playmozRunAdGate(function() {
+                resolveSources();
+            });
+        } catch(e) {
+            resolveSources();
         }
 
     }
