@@ -105,7 +105,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'sources') {
 // BUSCA DADOS DO FILME
 // ============================================================
 
-$movie = get_movie($id);
+// Player: enviar HTML imediatamente; obter fontes separadamente por AJAX.
+// TMDB so e consultado na pagina de detalhes, nao no player.
+$movie = ($play === 1) ? [
+    'title' => ($incomingTitle !== '' ? $incomingTitle : 'Filme'),
+    'poster_path' => ''
+] : get_movie($id);
 
 if (
     empty($movie) ||
@@ -122,9 +127,9 @@ $movie_name = htmlspecialchars(
     'UTF-8'
 );
 
-$poster_url = !empty($movie['poster_path'])
+$poster_url = ($play === 1 && $incomingPoster !== '') ? $incomingPoster : (!empty($movie['poster_path'])
     ? TMDB_IMG . $movie['poster_path']
-    : 'https://i.imgur.com/XB5B8Md.jpeg';
+    : 'https://i.imgur.com/XB5B8Md.jpeg');
 
 // ============================================================
 // SCRAPE MGEB
@@ -669,7 +674,7 @@ if ($play == 1) {
 <script>
 
 var sourcesData = [];
-var sourceEndpoint = <?= json_encode('/filme/?action=sources&id='.$id) ?>;
+var sourceEndpoint = <?= json_encode(pm_signed_sources_url('/filme/', ['action'=>'sources','id'=>(string)$id])) ?>;
 
 var currentPageUrl =
     window.location.href;
