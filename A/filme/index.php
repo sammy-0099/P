@@ -96,6 +96,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'sources') {
         return $host !== 'www-fontedecanais-sh.77zzhf54vdll71.com';
     }));
     if (!$sources) { $sources = []; }
+    $sources = pm_proxy_sources($sources);
     echo json_encode(['ok'=>true,'sources'=>$sources], JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
     exit;
 }
