@@ -1,6 +1,5 @@
 <?php
 require_once dirname(__DIR__) . '/config.php';
-require_once dirname(__DIR__, 2) . '/xtream-adapter.php';
 pm_require_authorized_embed();
 
 // s.php - Sistema Completo de Série (Lista + JWPlayer com Qualidade Flutuante e Fallback)
@@ -63,7 +62,114 @@ function get_episode($id, $season, $episode) {
     return fetch_tmdb("/tv/{$id}/season/{$season}/episode/{$episode}");
 }
 
-function scrape_mgeb($id, $season, $episode) { return pm_xtream_resolve_series((int)$id, (int)$season, (int)$episode); }
+function scrape_mgeb($id, $season, $episode) {
+    $cacheKey = 'source:' . $id . ':' . $season . ':' . $episode;
+    $cached = cache_read($cacheKey);
+    if ($cached !== null) return $cached;
+
+    $url = "https://mgeb.top/embed/{$id}/{$season}/{$episode}";
+
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL => $url,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        CURLOPT_REFERER => 'https://mgeb.top/',
+        CURLOPT_HTTPHEADER => [
+            'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language: pt-BR,pt;q=0.9,en;q=0.8',
+            'Cache-Control: no-cache',
+        ]
+    ]);
+
+    $html = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode != 200 || empty($html)) {
+        return null;
+    }
+
+    $sources = [];
+    $first_url = null;
+    $first_type = 'mp4';
+
+    if (preg_match('/sources\s*=\s*(\[.*?\]);/s', $html, $matches)) {
+        $sourceData = $matches[1];
+
+        preg_match_all('/"file"\s*:\s*"([^"]+)"/', $sourceData, $fileMatches);
+        preg_match_all('/"type"\s*:\s*"([^"]+)"/', $sourceData, $typeMatches);
+        preg_match_all('/"label"\s*:\s*"([^"]+)"/', $sourceData, $labelMatches);
+
+        for ($i = 0; $i < count($fileMatches[1]); $i++) {
+            $file = $fileMatches[1][$i];
+            $type = isset($typeMatches[1][$i]) ? $typeMatches[1][$i] : 'mp4';
+            $label = isset($labelMatches[1][$i]) ? $labelMatches[1][$i] : 'HD';
+
+            if (filter_var($file, FILTER_VALIDATE_URL)) {
+                if (empty($type) || $type == 'mp4') {
+                    if (strpos($file, '.m3u8') !== false || strpos($file, 'hls') !== false) {
+                        $type = 'hls';
+                    } else {
+                        $type = 'mp4';
+                    }
+                }
+
+                $sources[] = ['file' => $file, 'type' => $type, 'label' => $label];
+
+                if ($first_url === null) {
+                    $first_url = $file;
+                    $first_type = $type;
+                }
+            }
+        }
+    }
+
+    if (empty($sources)) {
+        $patterns = [
+            '/https?:\/\/[^\s"\']+\.m3u8[^\s"\']*/i',
+            '/https?:\/\/[^\s"\']+\/hls\/[^\s"\']+\.m3u8[^\s"\']*/i',
+            '/https?:\/\/[^\s"\']+\.mp4[^\s"\']*/i'
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match_all($pattern, $html, $matches)) {
+                foreach ($matches[0] as $url) {
+                    $url = trim($url);
+                    $type = (strpos($url, '.m3u8') !== false || strpos($url, 'hls') !== false) ? 'hls' : 'mp4';
+
+                    $exists = false;
+                    foreach ($sources as $src) {
+                        if ($src['file'] === $url) {
+                            $exists = true;
+                            break;
+                        }
+                    }
+
+                    if (!$exists) {
+                        $sources[] = ['file' => $url, 'type' => $type, 'label' => 'HD'];
+
+                        if ($first_url === null) {
+                            $first_url = $url;
+                            $first_type = $type;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    $result = [
+        'sources' => $sources,
+        'first' => $first_url,
+        'first_type' => $first_type
+    ];
+    cache_write($cacheKey, $result);
+    return $result;
+}
 
 // Suporta:
 // s.php?id=9787
@@ -90,15 +196,20 @@ if ($episode < 1) $episode = 1;
 // O HTML do player já é enviado antes desta operação.
 if (isset($_GET['action']) && $_GET['action'] === 'sources') {
     header('Content-Type: application/json; charset=utf-8');
-    header('Cache-Control: private, no-store');
+    header('Cache-Control: public, max-age=900, stale-while-revalidate=60');
     $result = scrape_mgeb($id, $season, $episode);
     $sources = $result['sources'] ?? [];
     $sources = array_values(array_filter($sources, static function ($source) {
         $host = strtolower((string)parse_url((string)($source['file'] ?? ''), PHP_URL_HOST));
         return $host !== 'www-fontedecanais-sh.77zzhf54vdll71.com';
     }));
-    if (!$sources) { $sources = []; }
-    $sources = pm_proxy_sources($sources);
+    if (!$sources) {
+        $sources = [[
+            'file' => "https://embedplayapi.top/embed/{$id}/{$season}/{$episode}",
+            'type' => 'iframe',
+            'label' => 'AUTO'
+        ]];
+    }
     echo json_encode(['ok'=>true,'sources'=>$sources], JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
     exit;
 }
@@ -224,7 +335,7 @@ if ($play == 1) {
 <script src="../server-selector.js"></script>
 <script>
 var sourcesData=[];
-var sourceEndpoint=<?= json_encode(pm_signed_sources_url('/serie/', ['action'=>'sources','id'=>(string)$id,'t'=>(string)$season,'e'=>(string)$episode])) ?>;
+var sourceEndpoint=<?= json_encode('/serie/?action=sources&id='.$id.'&t='.$season.'&e='.$episode) ?>;
 var player=null;
 var returnKey=<?= json_encode($returnKey) ?>;
 var mediaId=<?= $id ?>;
@@ -372,7 +483,7 @@ function initPlayer(){
 }
 
 function loadIframeFallback(url){
-    var fallbackUrl=url||'about:blank';
+    var fallbackUrl=url||'https://embedplayapi.top/embed/<?= $id ?>/<?= $season ?>/<?= $episode ?>';
     document.getElementById('ani-player').style.display='none';
     document.getElementById('down').style.display='none';
     var iframe=document.getElementById('iframe-player');
