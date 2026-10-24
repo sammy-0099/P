@@ -223,7 +223,7 @@ if ($play == 1) {
 <script src="../server-selector.js"></script>
 <script>
 var sourcesData=[];
-var sourceEndpoint=<?= json_encode('/serie/?action=sources&id='.$id.'&t='.$season.'&e='.$episode) ?>;
+var sourceEndpoint=<?= json_encode(pm_signed_sources_url('/serie/', ['action'=>'sources','id'=>(string)$id,'t'=>(string)$season,'e'=>(string)$episode])) ?>;
 var player=null;
 var returnKey=<?= json_encode($returnKey) ?>;
 var mediaId=<?= $id ?>;
