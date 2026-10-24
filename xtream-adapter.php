@@ -101,3 +101,37 @@ function pm_xtream_resolve_series(int $tmdbId, int $season, int $episode): array
     }
     return ['sources'=>[], 'first'=>null, 'first_type'=>'mp4'];
 }
+
+// Short-lived signed tokens prevent arbitrary external URLs from being proxied.
+function pm_proxy_allowed(string $url): bool {
+    $p=parse_url($url);
+    return is_array($p) && ($p['scheme']??'')==='https' && strtolower($p['host']??'')==='mgeb.lat' && !isset($p['port']) && !isset($p['user']);
+}
+function pm_proxy_secret(): string {return hash('sha256', 'playmoz-relay-v1|'.pm_xtream_url());}
+function pm_proxy_link(string $url): string {
+    if(!pm_proxy_allowed($url)) return '';
+    $data=rtrim(strtr(base64_encode(json_encode(['u'=>$url,'e'=>time()+7200],JSON_UNESCAPED_SLASHES)),'+/','-_'),'=');
+    $mac=hash_hmac('sha256',$data,pm_proxy_secret());
+    return 'https://playmoz.xyz/stream-proxy.php?t='.rawurlencode($data.'.'.$mac);
+}
+function pm_proxy_decode(string $token): ?string {
+    $parts=explode('.',$token);
+    if(count($parts)!==2 || strlen($token)>8192 || !hash_equals(hash_hmac('sha256',$parts[0],pm_proxy_secret()),$parts[1])) return null;
+    $json=base64_decode(strtr($parts[0],'-_','+/'),true);
+    $data=json_decode((string)$json,true);
+    $url=$data['u']??'';
+    return is_string($url) && (int)($data['e']??0)>=time() && pm_proxy_allowed($url) ? $url : null;
+}
+function pm_proxy_absolute(string $base, string $ref): string {
+    if(preg_match('#^https?://#i',$ref))return $ref;
+    $p=parse_url($base);$origin=($p['scheme']??'https').'://'.($p['host']??'mgeb.lat');
+    if(str_starts_with($ref,'//'))return 'https:'.$ref;
+    if(str_starts_with($ref,'/'))return $origin.$ref;
+    if(str_starts_with($ref,'?'))return $origin.($p['path']??'/').$ref;
+    $dir=preg_replace('#/[^/]*$#','/',($p['path']??'/'));
+    return $origin.$dir.$ref;
+}
+function pm_proxy_sources(array $sources): array {
+    foreach($sources as &$s){if(isset($s['file']) && pm_proxy_allowed((string)$s['file'])) $s['file']=pm_proxy_link($s['file']);}
+    unset($s);return $sources;
+}
