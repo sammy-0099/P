@@ -103,27 +103,6 @@ function pm_emit_embed_gate(): void {
     exit;
 }
 
-// Token específico para consulta AJAX das fontes; ligado aos parametros reais.
-function pm_source_token(array $params, int $exp): string {
-    ksort($params);
-    return hash_hmac('sha256', 'source|' . $exp . '|' . http_build_query($params, '', '&', PHP_QUERY_RFC3986), PM_EMBED_GATE_SECRET);
-}
-function pm_signed_sources_url(string $route, array $params): string {
-    $exp = time() + 3600;
-    $token = pm_source_token($params, $exp);
-    return $route . '?' . http_build_query($params + ['__src_exp'=>$exp, '__src_sig'=>$token], '', '&', PHP_QUERY_RFC3986);
-}
-function pm_valid_sources_request(): bool {
-    if (($_GET['action'] ?? '') !== 'sources') return false;
-    $exp = (int)($_GET['__src_exp'] ?? 0);
-    if ($exp <= time() || $exp > time() + 3630) return false;
-    $sig = (string)($_GET['__src_sig'] ?? '');
-    if (strlen($sig) !== 64) return false;
-    $params = $_GET;
-    unset($params['__src_exp'], $params['__src_sig']);
-    return hash_equals(pm_source_token($params, $exp), $sig);
-}
-
 function pm_require_authorized_embed(): void {
     $allowed = pm_authorized_origins();
     if (!$allowed) pm_embed_forbidden('Nenhum domínio autorizado foi configurado.', 'Configuração inválida');
@@ -134,9 +113,6 @@ function pm_require_authorized_embed(): void {
     header('Referrer-Policy: origin');
     header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
     header('X-Robots-Tag: noindex, nofollow, noarchive');
-
-    // AJAX com token assinado, emitido apenas apos validacao do iframe.
-    if (pm_valid_sources_request()) return;
 
     // Bloqueia abertura direta quando o navegador fornece Sec-Fetch-Dest.
     $dest = strtolower(trim((string)($_SERVER['HTTP_SEC_FETCH_DEST'] ?? '')));
