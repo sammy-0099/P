@@ -27,7 +27,7 @@ function pm_xtream_query(string $action, array $params = []): array {
         $url .= $sep . http_build_query(array_merge(['action'=>$action], $params));
         $ch = curl_init($url);
         curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_FOLLOWLOCATION=>true,
-            CURLOPT_CONNECTTIMEOUT=>8, CURLOPT_TIMEOUT=>45, CURLOPT_SSL_VERIFYPEER=>true,
+            CURLOPT_CONNECTTIMEOUT=>4, CURLOPT_TIMEOUT=>18, CURLOPT_SSL_VERIFYPEER=>true,
             CURLOPT_HTTPHEADER=>['Origin: '.PM_XTREAM_ORIGIN, 'X-Domain: playmoz.xyz', 'Referer: https://playmoz.xyz/', 'Accept: application/json']]);
         $body = curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -38,17 +38,20 @@ function pm_xtream_query(string $action, array $params = []): array {
     });
 }
 function pm_xtream_find(string $kind, int $tmdbId): ?array {
+    static $found = [];
+    $cacheKey = $kind . ":" . $tmdbId;
+    if (array_key_exists($cacheKey, $found)) return $found[$cacheKey];
     $items = pm_xtream_query($kind === 'movie' ? 'get_vod_streams' : 'get_series');
     foreach ($items as $item) {
         if (!is_array($item)) continue;
-        if ((string)($item['tmdb_id'] ?? '') === (string)$tmdbId && $tmdbId > 0) return $item;
+        if ((string)($item['tmdb_id'] ?? '') === (string)$tmdbId && $tmdbId > 0) return $found[$cacheKey] = $item;
     }
     // Existing routes use TMDB ids, but permit direct Xtream ids as a convenience.
     $idField = $kind === 'movie' ? 'stream_id' : 'series_id';
     foreach ($items as $item) {
-        if (is_array($item) && (string)($item[$idField] ?? '') === (string)$tmdbId) return $item;
+        if (is_array($item) && (string)($item[$idField] ?? '') === (string)$tmdbId) return $found[$cacheKey] = $item;
     }
-    return null;
+    return $found[$cacheKey] = null;
 }
 function pm_xtream_sources(array $record, string $kind, ?int $episodeId = null): array {
     $candidates = $record['sources'] ?? [];
