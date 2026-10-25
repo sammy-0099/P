@@ -1,0 +1,19 @@
+PLAYMOZ - APENAS PAINEL PHP (LOGIN CORRIGIDO)
+
+1. Extraia TODOS os ficheiros deste ZIP numa pasta painel-jogos do seu alojamento.
+2. Aceda a https://nexaacapital.xo.je/painel-jogos/instalar.php
+3. Escolha a sua própria palavra-passe com pelo menos 12 caracteres.
+4. Inicie sessão em https://nexaacapital.xo.je/painel-jogos/
+5. JSON para consumo pelo PlayMoz: https://nexaacapital.xo.je/painel-jogos/data-public.php
+
+ATENÇÃO: a pasta data precisa de ser gravável pelo PHP e a protecção .htaccess
+precisa de estar activa. Faça a instalação imediatamente após o upload,
+pois antes de definir a palavra-passe qualquer pessoa com o link de instalação
+poderá tentar configurar o painel.
+
+Se o painel já tiver sido instalado, instalar.php não permite substituir a
+palavra-passe. Se pretender reiniciar, faça cópia de segurança, apague APENAS
+o ficheiro data/admin.php e crie uma nova palavra-passe no instalar.php.
+NUNCA apague data/jogos.json se quiser conservar os jogos.
+
+Requer PHP 7.4+ com sessões, JSON, e extensão cURL para importar eventos.
