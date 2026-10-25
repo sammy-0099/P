@@ -1,4 +1,3 @@
-
 [
   {
     "id": "evt-c298a470edea324e",
@@ -19,14 +18,14 @@
       "image": "https://imagecache.365scores.com/image/upload/f_png,w_24,h_24,c_limit,q_auto:eco,dpr_2,d_Countries:Round:54.png/v19/Competitions/11"
     },
     "competition": "La Liga",
-    "poster": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ_h4bR6b3_YYmyQdVN-WZrNti_5cKr-frDLCrieNzBCQ&s=10",
+    "poster": "https://i.ibb.co/vxwT6f28/images.jpg",
     "start_timestamp": 1792958400,
     "end_timestamp": 1792966320,
     "time_start": "2026-10-25T20:00:00Z",
     "time_end": "2026-10-25T22:12:00Z",
     "embeds": [
       {
-        "embed_url": "https://92b733c93476e6886ad8a510eade9787.embedtv.cc/caze1",
+        "embed_url": "https://rdcanais.org/cazetv",
         "provider": "Servidor 1",
         "quality": "HD"
       }
